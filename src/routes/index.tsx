@@ -8,7 +8,7 @@ import { Plan, SAMPLE_PLAN, parsePlanInput } from "@/lib/timeline";
 import { exportPlanToPptx } from "@/lib/exportPptx";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2 } from "lucide-react";
+import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet } from "lucide-react";
 import { extractPlanFromImage } from "@/server/extractPlan.functions";
 import { toast } from "sonner";
 
@@ -36,6 +36,7 @@ function Index() {
   const [extracting, setExtracting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const view = useMemo(() => {
     if (style === "milestone") return <MilestoneTimeline plan={plan} />;
@@ -98,6 +99,40 @@ function Index() {
     } finally {
       setExtracting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleCsvFile = async (file: File) => {
+    const name = file.name.toLowerCase();
+    const okType =
+      file.type.includes("csv") ||
+      file.type.includes("json") ||
+      file.type.startsWith("text/") ||
+      name.endsWith(".csv") ||
+      name.endsWith(".json") ||
+      name.endsWith(".txt");
+    if (!okType) {
+      toast.error("Please upload a .csv, .json, or .txt file.");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("File must be under 4 MB.");
+      return;
+    }
+    try {
+      const text = await file.text();
+      setRaw(text);
+      const next = parsePlanInput(text);
+      if (!next.tasks.length) throw new Error("No tasks found in the file.");
+      setPlan(next);
+      setError(null);
+      toast.success(`Loaded ${next.tasks.length} tasks from ${file.name}.`);
+    } catch (e: any) {
+      const msg = e?.message || "Could not read the file.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      if (csvInputRef.current) csvInputRef.current.value = "";
     }
   };
 
@@ -209,6 +244,24 @@ function Index() {
                   if (f) handleScreenshot(f);
                 }}
               />
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv,.json,.txt,text/csv,application/json,text/plain"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleCsvFile(f);
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => csvInputRef.current?.click()}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Upload CSV
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
