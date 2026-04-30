@@ -253,6 +253,9 @@ function Index() {
             JSON: <code>{`{ title, subtitle, tasks: [...] }`}</code> or an array
             of tasks.
           </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Tip: click <strong>Upload screenshot</strong> to drop in an image of an Excel sheet — AI will read it and fill the editor automatically.
+          </p>
         </div>
       </section>
 
