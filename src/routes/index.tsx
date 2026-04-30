@@ -8,7 +8,9 @@ import { Plan, SAMPLE_PLAN, parsePlanInput } from "@/lib/timeline";
 import { exportPlanToPptx } from "@/lib/exportPptx";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Download, Image as ImageIcon, Upload } from "lucide-react";
+import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2 } from "lucide-react";
+import { extractPlanFromImage } from "@/server/extractPlan.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -31,7 +33,9 @@ function Index() {
   const [style, setStyle] = useState<Style>("swimlane");
   const [raw, setRaw] = useState(SAMPLE_CSV);
   const [error, setError] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const view = useMemo(() => {
     if (style === "milestone") return <MilestoneTimeline plan={plan} />;
@@ -60,6 +64,41 @@ function Index() {
     a.download = `${plan.title.replace(/\s+/g, "_")}.png`;
     a.href = dataUrl;
     a.click();
+  };
+
+  const handleScreenshot = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (PNG, JPG, etc.)");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Image must be under 8 MB.");
+      return;
+    }
+    setExtracting(true);
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => reject(new Error("Could not read file"));
+        r.readAsDataURL(file);
+      });
+      const { csv } = await extractPlanFromImage({ data: { imageDataUrl: dataUrl } });
+      if (!csv || !csv.toLowerCase().includes("name")) {
+        throw new Error("AI didn't return a usable plan. Try a clearer screenshot.");
+      }
+      setRaw(csv);
+      const next = parsePlanInput(csv);
+      if (!next.tasks.length) throw new Error("No tasks found in the screenshot.");
+      setPlan(next);
+      setError(null);
+      toast.success(`Extracted ${next.tasks.length} tasks from your screenshot.`);
+    } catch (e: any) {
+      toast.error(e.message || "Could not extract plan from image.");
+    } finally {
+      setExtracting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -156,10 +195,33 @@ function Index() {
             <div className="flex items-center gap-2">
               <Upload className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold uppercase tracking-widest">
-                Plan data — paste CSV or JSON
+                Plan data — paste CSV/JSON or upload a screenshot
               </h3>
             </div>
             <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleScreenshot(f);
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={extracting}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {extracting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ScanLine className="mr-2 h-4 w-4" />
+                )}
+                {extracting ? "Reading screenshot…" : "Upload screenshot"}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -190,6 +252,9 @@ function Index() {
             <code>end</code> blank for a milestone. <code>color</code> is 1–6.
             JSON: <code>{`{ title, subtitle, tasks: [...] }`}</code> or an array
             of tasks.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Tip: click <strong>Upload screenshot</strong> to drop in an image of an Excel sheet — AI will read it and fill the editor automatically.
           </p>
         </div>
       </section>
