@@ -195,10 +195,33 @@ function Index() {
             <div className="flex items-center gap-2">
               <Upload className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold uppercase tracking-widest">
-                Plan data — paste CSV or JSON
+                Plan data — paste CSV/JSON or upload a screenshot
               </h3>
             </div>
             <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleScreenshot(f);
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={extracting}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {extracting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ScanLine className="mr-2 h-4 w-4" />
+                )}
+                {extracting ? "Reading screenshot…" : "Upload screenshot"}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
