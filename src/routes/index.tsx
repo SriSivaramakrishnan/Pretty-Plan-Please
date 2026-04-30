@@ -122,6 +122,9 @@ function Index() {
               Paste a CSV or JSON plan, choose a style, and produce a
               boardroom-ready timeline you can drop straight into PowerPoint.
             </p>
+          <p className="mt-2 text-xs font-medium text-primary">
+            ✓ PowerPoint exports are fully editable — every bar, milestone, and label is a native shape you can recolor, resize, or rewrite in PowerPoint.
+          </p>
           </div>
           <div className="flex items-center gap-3">
             <Tabs value={style} onValueChange={(v) => setStyle(v as Style)}>
