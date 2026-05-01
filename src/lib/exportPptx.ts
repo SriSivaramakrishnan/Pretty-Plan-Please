@@ -12,11 +12,30 @@ import {
 } from "./timeline";
 
 type Style = "swimlane" | "milestone" | "roadmap";
+export type BarShape = "rounded" | "rectangle" | "pill" | "chevron" | "parallelogram" | "arrow";
+
+function pptxShapeFor(shape: BarShape): { name: string; rectRadius?: number } {
+  switch (shape) {
+    case "rectangle":
+      return { name: "rect" };
+    case "pill":
+      return { name: "roundRect", rectRadius: 0.5 };
+    case "chevron":
+      return { name: "chevron" };
+    case "arrow":
+      return { name: "rightArrow" };
+    case "parallelogram":
+      return { name: "parallelogram" };
+    case "rounded":
+    default:
+      return { name: "roundRect", rectRadius: 0.12 };
+  }
+}
 
 const SLIDE_W = 13.333; // widescreen inches
 const SLIDE_H = 7.5;
 
-export async function exportPlanToPptx(plan: Plan, style: Style) {
+export async function exportPlanToPptx(plan: Plan, style: Style, shape: BarShape = "rounded") {
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
   pptx.title = plan.title;
@@ -47,14 +66,15 @@ export async function exportPlanToPptx(plan: Plan, style: Style) {
     });
   }
 
-  if (style === "swimlane") drawSwimlane(slide, plan);
+  if (style === "swimlane") drawSwimlane(slide, plan, shape);
   else if (style === "milestone") drawMilestone(slide, plan);
   else drawRoadmap(slide, plan);
 
   await pptx.writeFile({ fileName: `${plan.title.replace(/\s+/g, "_")}.pptx` });
 }
 
-function drawSwimlane(slide: any, plan: Plan) {
+function drawSwimlane(slide: any, plan: Plan, shape: BarShape = "rounded") {
+  const shapeDef = pptxShapeFor(shape);
   const { start, end } = planRange(plan);
   const months = monthsBetween(start, end);
   const lanes = uniqueLanes(plan);
@@ -134,14 +154,14 @@ function drawSwimlane(slide: any, plan: Plan) {
             align: "center",
           });
         } else {
-          slide.addShape("roundRect", {
+          slide.addShape(shapeDef.name, {
             x: x0 + left,
             y: y + 0.15,
             w: Math.max(0.15, right - left),
             h: rowH - 0.3,
             fill: { color: hexOf(t.color) },
             line: { color: "FFFFFF", width: 0 },
-            rectRadius: 0.12,
+            ...(shapeDef.rectRadius !== undefined ? { rectRadius: shapeDef.rectRadius } : {}),
           });
           slide.addText(t.name, {
             x: x0 + left + 0.05,
