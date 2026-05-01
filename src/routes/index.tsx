@@ -6,9 +6,10 @@ import { MilestoneTimeline } from "@/components/timeline/MilestoneTimeline";
 import { RoadmapQuarters } from "@/components/timeline/RoadmapQuarters";
 import { Plan, SAMPLE_PLAN, parsePlanInput } from "@/lib/timeline";
 import { exportPlanToPptx } from "@/lib/exportPptx";
+import { THEMES, getTheme, type ThemeId } from "@/lib/themes";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet } from "lucide-react";
+import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet, Palette } from "lucide-react";
 import { extractPlanFromImage } from "@/server/extractPlan.functions";
 import { toast } from "sonner";
 
@@ -32,12 +33,15 @@ function Index() {
   const [plan, setPlan] = useState<Plan>(SAMPLE_PLAN);
   const [style, setStyle] = useState<Style>("swimlane");
   const [shape, setShape] = useState<BarShape>("rounded");
+  const [themeId, setThemeId] = useState<ThemeId>("executive");
   const [raw, setRaw] = useState(SAMPLE_CSV);
   const [error, setError] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  const theme = getTheme(themeId);
 
   const view = useMemo(() => {
     if (style === "milestone") return <MilestoneTimeline plan={plan} />;
@@ -166,7 +170,7 @@ function Index() {
             </Button>
             <Button
               size="sm"
-              onClick={() => exportPlanToPptx(plan, style, shape)}
+              onClick={() => exportPlanToPptx(plan, style, shape, theme)}
               style={{ background: "var(--gradient-hero)" }}
             >
               <Download className="mr-2 h-4 w-4" />
@@ -232,13 +236,79 @@ function Index() {
                 <option value="parallelogram">Parallelogram</option>
               </select>
             </div>
+            <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs backdrop-blur">
+              <Palette className="h-3.5 w-3.5 text-primary" />
+              <span className="font-semibold uppercase tracking-widest text-muted-foreground">
+                Theme
+              </span>
+              <select
+                value={themeId}
+                onChange={(e) => setThemeId(e.target.value as ThemeId)}
+                className="bg-transparent text-xs font-semibold text-foreground outline-none"
+              >
+                {THEMES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Canvas */}
       <section className="mx-auto max-w-[1400px] px-6 py-10">
-        <div ref={canvasRef}>{view}</div>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Theme
+          </span>
+          {THEMES.map((t) => {
+            const active = t.id === themeId;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setThemeId(t.id)}
+                className={`group flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  active
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border bg-background/60 text-muted-foreground hover:text-foreground"
+                }`}
+                title={t.description}
+              >
+                <span className="flex">
+                  {t.pptx.palette.slice(0, 4).map((hex, i) => (
+                    <span
+                      key={i}
+                      className="-ml-1 h-3 w-3 rounded-full border border-white first:ml-0"
+                      style={{ background: `#${hex}` }}
+                    />
+                  ))}
+                </span>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <div
+          ref={canvasRef}
+          className={theme.canvasBg + " rounded-2xl"}
+          style={{
+            ...(theme.cssVars as React.CSSProperties),
+            fontFamily:
+              themeId === "sunrise"
+                ? "Palatino, Georgia, serif"
+                : themeId === "forest"
+                  ? "Cambria, Georgia, serif"
+                  : themeId === "mono"
+                    ? "Arial, sans-serif"
+                    : themeId === "candy"
+                      ? "'Trebuchet MS', sans-serif"
+                      : undefined,
+          }}
+        >
+          {view}
+        </div>
       </section>
 
       {/* Data editor */}
