@@ -259,6 +259,37 @@ function Index() {
 
       {/* Canvas */}
       <section className="mx-auto max-w-[1400px] px-6 py-10">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Theme
+          </span>
+          {THEMES.map((t) => {
+            const active = t.id === themeId;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setThemeId(t.id)}
+                className={`group flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  active
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border bg-background/60 text-muted-foreground hover:text-foreground"
+                }`}
+                title={t.description}
+              >
+                <span className="flex">
+                  {t.pptx.palette.slice(0, 4).map((hex, i) => (
+                    <span
+                      key={i}
+                      className="-ml-1 h-3 w-3 rounded-full border border-white first:ml-0"
+                      style={{ background: `#${hex}` }}
+                    />
+                  ))}
+                </span>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
         <div
           ref={canvasRef}
           className={theme.canvasBg + " rounded-2xl"}
