@@ -215,6 +215,23 @@ function Index() {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
+            <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs backdrop-blur">
+              <span className="font-semibold uppercase tracking-widest text-muted-foreground">
+                Bar
+              </span>
+              <select
+                value={shape}
+                onChange={(e) => setShape(e.target.value as BarShape)}
+                className="bg-transparent text-xs font-semibold text-foreground outline-none"
+              >
+                <option value="rounded">Rounded</option>
+                <option value="rectangle">Rectangle</option>
+                <option value="pill">Pill</option>
+                <option value="chevron">Chevron</option>
+                <option value="arrow">Arrow</option>
+                <option value="parallelogram">Parallelogram</option>
+              </select>
+            </div>
           </div>
         </div>
       </section>
