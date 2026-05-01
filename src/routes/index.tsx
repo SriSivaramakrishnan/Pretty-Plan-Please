@@ -9,7 +9,7 @@ import { exportPlanToPptx } from "@/lib/exportPptx";
 import { THEMES, getTheme, type ThemeId } from "@/lib/themes";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet } from "lucide-react";
+import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet, Palette } from "lucide-react";
 import { extractPlanFromImage } from "@/server/extractPlan.functions";
 import { toast } from "sonner";
 
@@ -242,7 +242,25 @@ function Index() {
 
       {/* Canvas */}
       <section className="mx-auto max-w-[1400px] px-6 py-10">
-        <div ref={canvasRef}>{view}</div>
+        <div
+          ref={canvasRef}
+          className={theme.canvasBg + " rounded-2xl"}
+          style={{
+            ...(theme.cssVars as React.CSSProperties),
+            fontFamily:
+              themeId === "sunrise"
+                ? "Palatino, Georgia, serif"
+                : themeId === "forest"
+                  ? "Cambria, Georgia, serif"
+                  : themeId === "mono"
+                    ? "Arial, sans-serif"
+                    : themeId === "candy"
+                      ? "'Trebuchet MS', sans-serif"
+                      : undefined,
+          }}
+        >
+          {view}
+        </div>
       </section>
 
       {/* Data editor */}
