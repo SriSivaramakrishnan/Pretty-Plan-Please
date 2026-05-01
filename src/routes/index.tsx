@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
-import { SwimlaneGantt } from "@/components/timeline/SwimlaneGantt";
+import { SwimlaneGantt, type BarShape } from "@/components/timeline/SwimlaneGantt";
 import { MilestoneTimeline } from "@/components/timeline/MilestoneTimeline";
 import { RoadmapQuarters } from "@/components/timeline/RoadmapQuarters";
 import { Plan, SAMPLE_PLAN, parsePlanInput } from "@/lib/timeline";
@@ -31,6 +31,7 @@ Sales enablement,2026-07-01,2026-09-30,Sales,task,6`;
 function Index() {
   const [plan, setPlan] = useState<Plan>(SAMPLE_PLAN);
   const [style, setStyle] = useState<Style>("swimlane");
+  const [shape, setShape] = useState<BarShape>("rounded");
   const [raw, setRaw] = useState(SAMPLE_CSV);
   const [error, setError] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
@@ -41,8 +42,8 @@ function Index() {
   const view = useMemo(() => {
     if (style === "milestone") return <MilestoneTimeline plan={plan} />;
     if (style === "roadmap") return <RoadmapQuarters plan={plan} />;
-    return <SwimlaneGantt plan={plan} />;
-  }, [plan, style]);
+    return <SwimlaneGantt plan={plan} shape={shape} />;
+  }, [plan, style, shape]);
 
   const handleApply = () => {
     try {
@@ -165,7 +166,7 @@ function Index() {
             </Button>
             <Button
               size="sm"
-              onClick={() => exportPlanToPptx(plan, style)}
+              onClick={() => exportPlanToPptx(plan, style, shape)}
               style={{ background: "var(--gradient-hero)" }}
             >
               <Download className="mr-2 h-4 w-4" />
@@ -214,6 +215,23 @@ function Index() {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
+            <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs backdrop-blur">
+              <span className="font-semibold uppercase tracking-widest text-muted-foreground">
+                Bar
+              </span>
+              <select
+                value={shape}
+                onChange={(e) => setShape(e.target.value as BarShape)}
+                className="bg-transparent text-xs font-semibold text-foreground outline-none"
+              >
+                <option value="rounded">Rounded</option>
+                <option value="rectangle">Rectangle</option>
+                <option value="pill">Pill</option>
+                <option value="chevron">Chevron</option>
+                <option value="arrow">Arrow</option>
+                <option value="parallelogram">Parallelogram</option>
+              </select>
+            </div>
           </div>
         </div>
       </section>

@@ -9,18 +9,42 @@ import {
   formatMonth,
 } from "@/lib/timeline";
 
+export type BarShape = "rounded" | "rectangle" | "pill" | "chevron" | "parallelogram" | "arrow";
+
 interface Props {
   plan: Plan;
+  shape?: BarShape;
 }
 
-export function SwimlaneGantt({ plan }: Props) {
+function clipFor(shape: BarShape): string | undefined {
+  switch (shape) {
+    case "chevron":
+      return "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%)";
+    case "arrow":
+      return "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)";
+    case "parallelogram":
+      return "polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%)";
+    default:
+      return undefined;
+  }
+}
+
+function radiusFor(shape: BarShape): string {
+  if (shape === "pill") return "9999px";
+  if (shape === "rounded") return "8px";
+  return "2px";
+}
+
+export function SwimlaneGantt({ plan, shape = "rounded" }: Props) {
   const { start, end } = planRange(plan);
   const months = monthsBetween(start, end);
   const lanes = uniqueLanes(plan);
   const rowH = 56;
-  const headerH = 76;
+  const headerH = 64;
   const labelW = 180;
-  const totalH = headerH + lanes.length * rowH + 40;
+  const totalH = headerH + lanes.length * rowH + 24;
+  const clip = clipFor(shape);
+  const radius = radiusFor(shape);
 
   return (
     <div
@@ -41,21 +65,25 @@ export function SwimlaneGantt({ plan }: Props) {
         </span>
       </header>
 
-      <div className="relative" style={{ height: totalH }}>
-        {/* Header months */}
-        <div
-          className="absolute left-0 right-0 top-0 flex border-b"
-          style={{ paddingLeft: labelW, height: headerH }}
-        >
+      <div
+        className="grid"
+        style={{
+          gridTemplateColumns: `${labelW}px 1fr`,
+          height: totalH,
+        }}
+      >
+        {/* Header: empty label cell */}
+        <div style={{ height: headerH }} />
+        {/* Header: months track */}
+        <div className="relative border-b" style={{ height: headerH }}>
           {months.map((m, i) => {
-            const next = new Date(m.getFullYear(), m.getMonth() + 1, 1);
-            const w = pct(next, start, end) - pct(m, start, end);
+            const left = pct(m, start, end);
             const isQuarterStart = m.getMonth() % 3 === 0;
             return (
               <div
                 key={i}
-                className="flex flex-col justify-end pb-2"
-                style={{ width: `${w}%` }}
+                className="absolute bottom-2 flex flex-col"
+                style={{ left: `${left}%` }}
               >
                 {isQuarterStart && (
                   <div className="text-[10px] font-semibold uppercase tracking-widest text-primary/70">
@@ -71,95 +99,134 @@ export function SwimlaneGantt({ plan }: Props) {
         </div>
 
         {/* Lanes */}
-        {lanes.map((lane, li) => {
-          const top = headerH + li * rowH;
-          return (
-            <div key={lane}>
-              {/* lane label */}
+        {lanes.map((lane, li) => (
+          <LaneRow
+            key={lane}
+            lane={lane}
+            li={li}
+            rowH={rowH}
+            months={months}
+            start={start}
+            end={end}
+            plan={plan}
+            shape={shape}
+            clip={clip}
+            radius={radius}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LaneRow({
+  lane,
+  li,
+  rowH,
+  months,
+  start,
+  end,
+  plan,
+  shape,
+  clip,
+  radius,
+}: {
+  lane: string;
+  li: number;
+  rowH: number;
+  months: Date[];
+  start: Date;
+  end: Date;
+  plan: Plan;
+  shape: BarShape;
+  clip?: string;
+  radius: string;
+}) {
+  const tasks = plan.tasks.filter((t) => (t.swimlane || "General") === lane);
+  return (
+    <>
+      {/* Label cell */}
+      <div
+        className="flex items-center pr-3 text-sm font-semibold text-foreground"
+        style={{ height: rowH }}
+      >
+        <span className="inline-block h-6 w-1 rounded-full bg-primary/70 mr-3" />
+        {lane}
+      </div>
+      {/* Track cell */}
+      <div
+        className="relative"
+        style={{
+          height: rowH,
+          background: li % 2 === 0 ? "var(--tl-soft)" : "transparent",
+          borderTop: "1px dashed var(--tl-rule)",
+        }}
+      >
+        {/* quarter gridlines */}
+        {months.map((m, i) =>
+          m.getMonth() % 3 === 0 ? (
+            <div
+              key={i}
+              className="absolute top-0 bottom-0 w-px"
+              style={{
+                left: `${pct(m, start, end)}%`,
+                background: "var(--tl-rule)",
+              }}
+            />
+          ) : null,
+        )}
+        {/* tasks */}
+        {tasks.map((t) => {
+          const sd = parseDate(t.start);
+          const ed = parseDate(t.end || t.start);
+          const left = pct(sd, start, end);
+          const right = pct(ed, start, end);
+          const width = Math.max(0.5, right - left);
+          const isMilestone = t.kind === "milestone" || !t.end;
+          if (isMilestone) {
+            return (
               <div
-                className="absolute left-0 flex items-center pr-3 text-sm font-semibold text-foreground"
-                style={{ top, height: rowH, width: labelW }}
+                key={t.id}
+                className="absolute -translate-x-1/2"
+                style={{ top: rowH / 2 - 12, left: `${left}%` }}
               >
-                <span className="inline-block h-6 w-1 rounded-full bg-primary/70 mr-3" />
-                {lane}
-              </div>
-              {/* lane track */}
-              <div
-                className="absolute right-0"
-                style={{
-                  top,
-                  left: labelW,
-                  height: rowH,
-                  background:
-                    li % 2 === 0 ? "var(--tl-soft)" : "transparent",
-                  borderTop: "1px dashed var(--tl-rule)",
-                }}
-              />
-              {/* month gridlines */}
-              {months.map((m, i) => (
                 <div
-                  key={i}
-                  className="absolute"
-                  style={{
-                    top,
-                    height: rowH,
-                    left: `calc(${labelW}px + ${pct(m, start, end)}% * (100% - ${labelW}px) / 100)`,
-                    width: 1,
-                    background:
-                      m.getMonth() % 3 === 0
-                        ? "var(--tl-rule)"
-                        : "transparent",
-                  }}
+                  className="h-6 w-6 rotate-45 rounded-sm shadow-md"
+                  style={{ background: colorOf(t.color) }}
                 />
-              ))}
-              {/* Tasks */}
-              {plan.tasks
-                .filter((t) => (t.swimlane || "General") === lane)
-                .map((t) => {
-                  const sd = parseDate(t.start);
-                  const ed = parseDate(t.end || t.start);
-                  const left = pct(sd, start, end);
-                  const right = pct(ed, start, end);
-                  if (t.kind === "milestone" || !t.end) {
-                    return (
-                      <div
-                        key={t.id}
-                        className="absolute -translate-x-1/2"
-                        style={{
-                          top: top + rowH / 2 - 12,
-                          left: `calc(${labelW}px + ${left}% * (100% - ${labelW}px) / 100)`,
-                        }}
-                      >
-                        <div
-                          className="h-6 w-6 rotate-45 rounded-sm shadow-md"
-                          style={{ background: colorOf(t.color) }}
-                        />
-                        <div className="absolute left-1/2 top-7 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground/90 px-2 py-0.5 text-[10px] font-medium text-background">
-                          {t.name}
-                        </div>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div
-                      key={t.id}
-                      className="absolute flex items-center overflow-hidden rounded-full px-3 text-xs font-semibold text-white shadow-md transition-transform hover:-translate-y-0.5"
-                      style={{
-                        top: top + 14,
-                        height: 28,
-                        left: `calc(${labelW}px + ${left}% * (100% - ${labelW}px) / 100)`,
-                        width: `calc((${right - left}%) * (100% - ${labelW}px) / 100)`,
-                        background: `linear-gradient(90deg, ${colorOf(t.color)}, color-mix(in oklab, ${colorOf(t.color)} 70%, white))`,
-                      }}
-                    >
-                      <span className="truncate drop-shadow-sm">{t.name}</span>
-                    </div>
-                  );
-                })}
+                <div className="absolute left-1/2 top-7 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground/90 px-2 py-0.5 text-[10px] font-medium text-background">
+                  {t.name}
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div
+              key={t.id}
+              className="absolute flex items-center overflow-hidden px-3 text-xs font-semibold text-white shadow-md transition-transform hover:-translate-y-0.5"
+              style={{
+                top: 14,
+                height: 28,
+                left: `${left}%`,
+                width: `${width}%`,
+                borderRadius: radius,
+                clipPath: clip,
+                background: `linear-gradient(90deg, ${colorOf(t.color)}, color-mix(in oklab, ${colorOf(t.color)} 70%, white))`,
+              }}
+            >
+              <span
+                className="truncate drop-shadow-sm"
+                style={{
+                  paddingLeft: shape === "parallelogram" ? 8 : 0,
+                  paddingRight: shape === "chevron" || shape === "arrow" ? 12 : 0,
+                }}
+              >
+                {t.name}
+              </span>
             </div>
           );
         })}
       </div>
-    </div>
+    </>
   );
 }
