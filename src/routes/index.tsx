@@ -236,6 +236,23 @@ function Index() {
                 <option value="parallelogram">Parallelogram</option>
               </select>
             </div>
+            <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs backdrop-blur">
+              <Palette className="h-3.5 w-3.5 text-primary" />
+              <span className="font-semibold uppercase tracking-widest text-muted-foreground">
+                Theme
+              </span>
+              <select
+                value={themeId}
+                onChange={(e) => setThemeId(e.target.value as ThemeId)}
+                className="bg-transparent text-xs font-semibold text-foreground outline-none"
+              >
+                {THEMES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </section>
