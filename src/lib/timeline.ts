@@ -93,6 +93,80 @@ export function quartersBetween(start: Date, end: Date) {
   return out;
 }
 
+export type TimeScale = "week" | "month" | "quarter" | "year";
+
+export function weeksBetween(start: Date, end: Date) {
+  const out: Date[] = [];
+  const d = new Date(start);
+  // align to Monday
+  const day = d.getDay();
+  const diff = (day + 6) % 7;
+  d.setDate(d.getDate() - diff);
+  while (d <= end) {
+    out.push(new Date(d));
+    d.setDate(d.getDate() + 7);
+  }
+  return out;
+}
+
+export function yearsBetween(start: Date, end: Date) {
+  const out: Date[] = [];
+  const d = new Date(start.getFullYear(), 0, 1);
+  while (d <= end) {
+    out.push(new Date(d));
+    d.setFullYear(d.getFullYear() + 1);
+  }
+  return out;
+}
+
+export interface Tick {
+  date: Date;
+  label: string;
+  major?: boolean; // draw stronger gridline
+  superLabel?: string; // e.g. year above month, quarter above week
+}
+
+export function ticksFor(scale: TimeScale, start: Date, end: Date): Tick[] {
+  if (scale === "week") {
+    return weeksBetween(start, end).map((d) => ({
+      date: d,
+      label: `${d.getMonth() + 1}/${d.getDate()}`,
+      major: d.getDate() <= 7,
+      superLabel:
+        d.getDate() <= 7
+          ? d.toLocaleString("en", { month: "short", year: "numeric" })
+          : undefined,
+    }));
+  }
+  if (scale === "year") {
+    return yearsBetween(start, end).map((d) => ({
+      date: d,
+      label: String(d.getFullYear()),
+      major: true,
+    }));
+  }
+  if (scale === "quarter") {
+    return quartersBetween(start, end).map((q) => ({
+      date: q.start,
+      label: q.label,
+      major: q.start.getMonth() === 0,
+      superLabel: q.start.getMonth() === 0 ? String(q.start.getFullYear()) : undefined,
+    }));
+  }
+  // month
+  return monthsBetween(start, end).map((d) => ({
+    date: d,
+    label: formatMonth(d),
+    major: d.getMonth() % 3 === 0,
+    superLabel:
+      d.getMonth() === 0
+        ? String(d.getFullYear())
+        : d.getMonth() % 3 === 0
+          ? `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`
+          : undefined,
+  }));
+}
+
 export function pct(date: Date, start: Date, end: Date) {
   const span = end.getTime() - start.getTime();
   return ((date.getTime() - start.getTime()) / span) * 100;
