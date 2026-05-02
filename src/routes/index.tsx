@@ -13,7 +13,7 @@ import { THEMES, getTheme, type ThemeId } from "@/lib/themes";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet, Palette, CalendarDays, Layers } from "lucide-react";
-import { extractPlanFromImage } from "@/server/extractPlan.functions";
+import { extractPlanFromImage } from "@/lib/extractPlan";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
