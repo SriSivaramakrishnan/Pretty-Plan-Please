@@ -1,17 +1,19 @@
 import PptxGenJS from "pptxgenjs";
 import {
   Plan,
-  monthsBetween,
   parseDate,
   pct,
   planRange,
   uniqueLanes,
-  formatMonth,
+  formatDate,
   quartersBetween,
+  ticksFor,
+  monthsBetween,
+  type TimeScale,
 } from "./timeline";
 import { getTheme, type Theme, type ThemeId } from "./themes";
 
-type Style = "swimlane" | "milestone" | "roadmap";
+type Style = "swimlane" | "milestone" | "roadmap" | "calendar" | "phase";
 export type BarShape = "rounded" | "rectangle" | "pill" | "chevron" | "parallelogram" | "arrow";
 
 function pptxShapeFor(shape: BarShape): { name: string; rectRadius?: number } {
@@ -54,6 +56,7 @@ export async function exportPlanToPptx(
   style: Style,
   shape: BarShape = "rounded",
   themeOrId: Theme | ThemeId = "executive",
+  scale: TimeScale = "month",
 ) {
   const theme: Theme =
     typeof themeOrId === "string" ? getTheme(themeOrId) : themeOrId;
@@ -88,17 +91,19 @@ export async function exportPlanToPptx(
     });
   }
 
-  if (style === "swimlane") drawSwimlane(slide, plan, shape, theme);
-  else if (style === "milestone") drawMilestone(slide, plan, theme);
-  else drawRoadmap(slide, plan, theme);
+  if (style === "swimlane") drawSwimlane(slide, plan, shape, theme, scale);
+  else if (style === "milestone") drawMilestone(slide, plan, theme, scale);
+  else if (style === "roadmap") drawRoadmap(slide, plan, theme);
+  else if (style === "calendar") drawCalendar(slide, plan, theme);
+  else drawPhaseCards(slide, plan, theme);
 
   await pptx.writeFile({ fileName: `${plan.title.replace(/\s+/g, "_")}.pptx` });
 }
 
-function drawSwimlane(slide: any, plan: Plan, shape: BarShape, theme: Theme) {
+function drawSwimlane(slide: any, plan: Plan, shape: BarShape, theme: Theme, scale: TimeScale) {
   const shapeDef = pptxShapeFor(shape);
   const { start, end } = planRange(plan);
-  const months = monthsBetween(start, end);
+  const ticks = ticksFor(scale, start, end);
   const lanes = uniqueLanes(plan);
   const x0 = 2.0;
   const y0 = 1.6;
@@ -106,9 +111,9 @@ function drawSwimlane(slide: any, plan: Plan, shape: BarShape, theme: Theme) {
   const rowH = 0.6;
   const headerH = 0.5;
 
-  months.forEach((m) => {
-    const mx = x0 + (pct(m, start, end) / 100) * w;
-    slide.addText(formatMonth(m), {
+  ticks.forEach((t) => {
+    const mx = x0 + (pct(t.date, start, end) / 100) * w;
+    slide.addText(t.label, {
       x: mx,
       y: y0 - 0.4,
       w: 0.8,
@@ -118,7 +123,7 @@ function drawSwimlane(slide: any, plan: Plan, shape: BarShape, theme: Theme) {
       bold: true,
       fontFace: theme.pptx.bodyFont,
     });
-    if (m.getMonth() % 3 === 0) {
+    if (t.major) {
       slide.addShape("line", {
         x: mx,
         y: y0,
@@ -204,9 +209,9 @@ function drawSwimlane(slide: any, plan: Plan, shape: BarShape, theme: Theme) {
   });
 }
 
-function drawMilestone(slide: any, plan: Plan, theme: Theme) {
+function drawMilestone(slide: any, plan: Plan, theme: Theme, scale: TimeScale) {
   const { start, end } = planRange(plan);
-  const months = monthsBetween(start, end);
+  const ticks = ticksFor(scale, start, end);
   const x0 = 0.6;
   const w = SLIDE_W - 1.2;
   const yAxis = 4.0;
@@ -221,8 +226,8 @@ function drawMilestone(slide: any, plan: Plan, theme: Theme) {
     rectRadius: 0.05,
   });
 
-  months.forEach((m) => {
-    const mx = x0 + (pct(m, start, end) / 100) * w;
+  ticks.forEach((t) => {
+    const mx = x0 + (pct(t.date, start, end) / 100) * w;
     slide.addShape("line", {
       x: mx,
       y: yAxis + 0.06,
@@ -230,7 +235,7 @@ function drawMilestone(slide: any, plan: Plan, theme: Theme) {
       h: 0.12,
       line: { color: theme.pptx.muted, width: 0.75 },
     });
-    slide.addText(formatMonth(m), {
+    slide.addText(t.label, {
       x: mx - 0.3,
       y: yAxis + 0.2,
       w: 0.6,
@@ -405,5 +410,160 @@ function drawRoadmap(slide: any, plan: Plan, theme: Theme) {
           fontFace: theme.pptx.bodyFont,
         });
       });
+  });
+}
+
+function drawCalendar(slide: any, plan: Plan, theme: Theme) {
+  const { start, end } = planRange(plan);
+  const months = monthsBetween(start, end);
+  const x0 = 0.4;
+  const y0 = 1.4;
+  const w = SLIDE_W - 0.8;
+  const colW = w / months.length;
+  const headerH = 0.45;
+  const rowH = 0.42;
+  const monthIndex = (d: Date) =>
+    (d.getFullYear() - start.getFullYear()) * 12 + (d.getMonth() - start.getMonth());
+
+  months.forEach((m, i) => {
+    slide.addShape("rect", {
+      x: x0 + i * colW,
+      y: y0,
+      w: colW - 0.04,
+      h: headerH,
+      fill: { color: m.getMonth() % 3 === 0 ? theme.pptx.laneA : theme.pptx.laneB },
+      line: { color: theme.pptx.rule, width: 0.5 },
+    });
+    slide.addText(`${m.toLocaleString("en", { month: "short" })}${m.getMonth() === 0 ? " " + m.getFullYear() : ""}`, {
+      x: x0 + i * colW,
+      y: y0,
+      w: colW - 0.04,
+      h: headerH,
+      fontSize: 10,
+      bold: true,
+      color: theme.pptx.ink,
+      align: "center",
+      valign: "middle",
+      fontFace: theme.pptx.bodyFont,
+    });
+  });
+
+  plan.tasks.forEach((t, i) => {
+    const sd = parseDate(t.start);
+    const ed = parseDate(t.end || t.start);
+    const sCol = Math.max(0, monthIndex(sd));
+    const eCol = Math.min(months.length - 1, monthIndex(ed));
+    const x = x0 + sCol * colW;
+    const ww = (eCol - sCol + 1) * colW - 0.04;
+    const y = y0 + headerH + 0.1 + i * (rowH + 0.08);
+    if (y + rowH > 7.0) return;
+    const fill = colorAt(theme, t.color);
+    const isMs = t.kind === "milestone" || !t.end;
+    slide.addShape("roundRect", {
+      x,
+      y,
+      w: Math.max(0.3, ww),
+      h: rowH,
+      fill: { color: fill, transparency: isMs ? 30 : 0 },
+      line: isMs
+        ? { color: fill, width: 1, dashType: "dash" }
+        : { color: theme.pptx.background, width: 0 },
+      rectRadius: 0.08,
+    });
+    slide.addText(`${isMs ? "◆ " : ""}${t.name}`, {
+      x: x + 0.1,
+      y: y + 0.04,
+      w: Math.max(0.3, ww) - 0.2,
+      h: rowH - 0.08,
+      fontSize: 9,
+      bold: true,
+      color: readableOn(fill),
+      valign: "middle",
+      fontFace: theme.pptx.bodyFont,
+    });
+  });
+}
+
+function drawPhaseCards(slide: any, plan: Plan, theme: Theme) {
+  const tasks = [...plan.tasks].sort(
+    (a, b) => parseDate(a.start).getTime() - parseDate(b.start).getTime(),
+  );
+  const cols = 3;
+  const x0 = 0.5;
+  const y0 = 1.4;
+  const gap = 0.25;
+  const cardW = (SLIDE_W - x0 * 2 - gap * (cols - 1)) / cols;
+  const cardH = 1.4;
+
+  tasks.forEach((t, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = x0 + col * (cardW + gap);
+    const y = y0 + row * (cardH + gap);
+    if (y + cardH > 7.2) return;
+    const fill = colorAt(theme, t.color);
+    const isMs = t.kind === "milestone" || !t.end;
+    slide.addShape("roundRect", {
+      x,
+      y,
+      w: cardW,
+      h: cardH,
+      fill: { color: theme.pptx.laneA },
+      line: { color: theme.pptx.rule, width: 0.75 },
+      rectRadius: 0.12,
+    });
+    slide.addShape("rect", {
+      x,
+      y,
+      w: 0.12,
+      h: cardH,
+      fill: { color: fill },
+      line: { color: fill, width: 0 },
+    });
+    slide.addText(`${isMs ? "Milestone" : "Phase"} ${String(i + 1).padStart(2, "0")}`, {
+      x: x + 0.25,
+      y: y + 0.1,
+      w: cardW - 0.5,
+      h: 0.3,
+      fontSize: 9,
+      bold: true,
+      color: fill,
+      fontFace: theme.pptx.bodyFont,
+    });
+    slide.addText(t.name, {
+      x: x + 0.25,
+      y: y + 0.42,
+      w: cardW - 0.5,
+      h: 0.55,
+      fontSize: 14,
+      bold: true,
+      color: theme.pptx.ink,
+      fontFace: theme.pptx.headingFont,
+    });
+    const sd = parseDate(t.start);
+    const ed = t.end ? parseDate(t.end) : null;
+    slide.addText(
+      `${formatDate(sd)}${ed ? "  →  " + formatDate(ed) : ""}`,
+      {
+        x: x + 0.25,
+        y: y + cardH - 0.35,
+        w: cardW - 0.5,
+        h: 0.25,
+        fontSize: 9,
+        color: theme.pptx.muted,
+        fontFace: theme.pptx.bodyFont,
+      },
+    );
+    slide.addText(t.swimlane || "General", {
+      x: x + cardW - 1.5,
+      y: y + 0.1,
+      w: 1.25,
+      h: 0.25,
+      fontSize: 8,
+      bold: true,
+      color: theme.pptx.muted,
+      align: "right",
+      fontFace: theme.pptx.bodyFont,
+    });
   });
 }
