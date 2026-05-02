@@ -33,11 +33,15 @@ export const Route = createRootRoute({
       { title: "Plan Studio — Beautiful project timelines & roadmaps" },
       { name: "description", content: "Build elegant Gantt timelines, milestone plans, and quarterly roadmaps. Paste CSV or JSON, export to PowerPoint." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Plan Studio" },
-      { property: "og:description", content: "Build elegant Gantt timelines, milestone plans, and quarterly roadmaps." },
+      { property: "og:title", content: "Plan Studio — Beautiful project timelines & roadmaps" },
+      { property: "og:description", content: "Build elegant Gantt timelines, milestone plans, and quarterly roadmaps. Paste CSV or JSON, export to PowerPoint." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Plan Studio — Beautiful project timelines & roadmaps" },
+      { name: "twitter:description", content: "Build elegant Gantt timelines, milestone plans, and quarterly roadmaps. Paste CSV or JSON, export to PowerPoint." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdd15316-2970-4593-8f2f-a669f9438c77/id-preview-a5d6c812--32acaf33-34d0-423c-973d-c976b54d2aa6.lovable.app-1777725075236.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdd15316-2970-4593-8f2f-a669f9438c77/id-preview-a5d6c812--32acaf33-34d0-423c-973d-c976b54d2aa6.lovable.app-1777725075236.png" },
     ],
     links: [
       {
