@@ -1,12 +1,12 @@
 import {
   Plan,
   colorOf,
-  monthsBetween,
   parseDate,
   pct,
   planRange,
   uniqueLanes,
-  formatMonth,
+  ticksFor,
+  type TimeScale,
 } from "@/lib/timeline";
 
 export type BarShape = "rounded" | "rectangle" | "pill" | "chevron" | "parallelogram" | "arrow";
@@ -14,6 +14,7 @@ export type BarShape = "rounded" | "rectangle" | "pill" | "chevron" | "parallelo
 interface Props {
   plan: Plan;
   shape?: BarShape;
+  scale?: TimeScale;
 }
 
 function clipFor(shape: BarShape): string | undefined {
@@ -35,9 +36,9 @@ function radiusFor(shape: BarShape): string {
   return "2px";
 }
 
-export function SwimlaneGantt({ plan, shape = "rounded" }: Props) {
+export function SwimlaneGantt({ plan, shape = "rounded", scale = "month" }: Props) {
   const { start, end } = planRange(plan);
-  const months = monthsBetween(start, end);
+  const ticks = ticksFor(scale, start, end);
   const lanes = uniqueLanes(plan);
   const rowH = 56;
   const headerH = 64;
@@ -76,22 +77,21 @@ export function SwimlaneGantt({ plan, shape = "rounded" }: Props) {
         <div style={{ height: headerH }} />
         {/* Header: months track */}
         <div className="relative border-b" style={{ height: headerH }}>
-          {months.map((m, i) => {
-            const left = pct(m, start, end);
-            const isQuarterStart = m.getMonth() % 3 === 0;
+          {ticks.map((t, i) => {
+            const left = pct(t.date, start, end);
             return (
               <div
                 key={i}
                 className="absolute bottom-2 flex flex-col"
                 style={{ left: `${left}%` }}
               >
-                {isQuarterStart && (
+                {t.superLabel && (
                   <div className="text-[10px] font-semibold uppercase tracking-widest text-primary/70">
-                    Q{Math.floor(m.getMonth() / 3) + 1} {m.getFullYear()}
+                    {t.superLabel}
                   </div>
                 )}
                 <div className="text-xs font-medium text-foreground/80">
-                  {formatMonth(m)}
+                  {t.label}
                 </div>
               </div>
             );
@@ -105,7 +105,7 @@ export function SwimlaneGantt({ plan, shape = "rounded" }: Props) {
             lane={lane}
             li={li}
             rowH={rowH}
-            months={months}
+            ticks={ticks}
             start={start}
             end={end}
             plan={plan}
@@ -123,7 +123,7 @@ function LaneRow({
   lane,
   li,
   rowH,
-  months,
+  ticks,
   start,
   end,
   plan,
@@ -134,7 +134,7 @@ function LaneRow({
   lane: string;
   li: number;
   rowH: number;
-  months: Date[];
+  ticks: { date: Date; major?: boolean }[];
   start: Date;
   end: Date;
   plan: Plan;
@@ -162,14 +162,14 @@ function LaneRow({
           borderTop: "1px dashed var(--tl-rule)",
         }}
       >
-        {/* quarter gridlines */}
-        {months.map((m, i) =>
-          m.getMonth() % 3 === 0 ? (
+        {/* major gridlines */}
+        {ticks.map((t, i) =>
+          t.major ? (
             <div
               key={i}
               className="absolute top-0 bottom-0 w-px"
               style={{
-                left: `${pct(m, start, end)}%`,
+                left: `${pct(t.date, start, end)}%`,
                 background: "var(--tl-rule)",
               }}
             />
