@@ -51,24 +51,17 @@ function readableOn(hex: string): string {
 
 const SLIDE_W = 13.333; // widescreen inches
 
-export async function exportPlanToPptx(
+function addPlanSlide(
+  pptx: any,
   plan: Plan,
   style: Style,
-  shape: BarShape = "rounded",
-  themeOrId: Theme | ThemeId = "executive",
-  scale: TimeScale = "month",
+  shape: BarShape,
+  theme: Theme,
+  scale: TimeScale,
 ) {
-  const theme: Theme =
-    typeof themeOrId === "string" ? getTheme(themeOrId) : themeOrId;
-
-  const pptx = new PptxGenJS();
-  pptx.layout = "LAYOUT_WIDE";
-  pptx.title = plan.title;
-
   const slide = pptx.addSlide();
   slide.background = { color: theme.pptx.background };
 
-  // Title
   slide.addText(plan.title, {
     x: 0.5,
     y: 0.3,
@@ -90,14 +83,60 @@ export async function exportPlanToPptx(
       color: theme.pptx.muted,
     });
   }
+  slide.addText(`Theme: ${theme.label}`, {
+    x: 10.5,
+    y: 0.3,
+    w: 2.3,
+    h: 0.3,
+    fontFace: theme.pptx.bodyFont,
+    fontSize: 10,
+    bold: true,
+    color: theme.pptx.muted,
+    align: "right",
+  });
 
   if (style === "swimlane") drawSwimlane(slide, plan, shape, theme, scale);
   else if (style === "milestone") drawMilestone(slide, plan, theme, scale);
   else if (style === "roadmap") drawRoadmap(slide, plan, theme);
   else if (style === "calendar") drawCalendar(slide, plan, theme);
   else drawPhaseCards(slide, plan, theme);
+}
 
+export async function exportPlanToPptx(
+  plan: Plan,
+  style: Style,
+  shape: BarShape = "rounded",
+  themeOrId: Theme | ThemeId = "executive",
+  scale: TimeScale = "month",
+) {
+  const theme: Theme =
+    typeof themeOrId === "string" ? getTheme(themeOrId) : themeOrId;
+
+  const pptx = new PptxGenJS();
+  pptx.layout = "LAYOUT_WIDE";
+  pptx.title = plan.title;
+
+  addPlanSlide(pptx, plan, style, shape, theme, scale);
   await pptx.writeFile({ fileName: `${plan.title.replace(/\s+/g, "_")}.pptx` });
+}
+
+export async function exportPlanToPptxAllThemes(
+  plan: Plan,
+  style: Style,
+  shape: BarShape = "rounded",
+  themes: Theme[],
+  scale: TimeScale = "month",
+) {
+  const pptx = new PptxGenJS();
+  pptx.layout = "LAYOUT_WIDE";
+  pptx.title = plan.title;
+
+  for (const theme of themes) {
+    addPlanSlide(pptx, plan, style, shape, theme, scale);
+  }
+  await pptx.writeFile({
+    fileName: `${plan.title.replace(/\s+/g, "_")}_AllThemes.pptx`,
+  });
 }
 
 function drawSwimlane(slide: any, plan: Plan, shape: BarShape, theme: Theme, scale: TimeScale) {
