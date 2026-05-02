@@ -8,11 +8,11 @@ import { CalendarGrid } from "@/components/timeline/CalendarGrid";
 import { PhaseCards } from "@/components/timeline/PhaseCards";
 import { Plan, SAMPLE_PLAN, parsePlanInput } from "@/lib/timeline";
 import type { TimeScale } from "@/lib/timeline";
-import { exportPlanToPptx } from "@/lib/exportPptx";
+import { exportPlanToPptx, exportPlanToPptxAllThemes } from "@/lib/exportPptx";
 import { THEMES, getTheme, type ThemeId } from "@/lib/themes";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet, Palette, CalendarDays } from "lucide-react";
+import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet, Palette, CalendarDays, Layers } from "lucide-react";
 import { extractPlanFromImage } from "@/server/extractPlan.functions";
 import { toast } from "sonner";
 
@@ -181,6 +181,17 @@ function Index() {
             >
               <Download className="mr-2 h-4 w-4" />
               Export PowerPoint
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                exportPlanToPptxAllThemes(plan, style, shape, THEMES, scale)
+              }
+              title="Export one slide per theme into a single editable PPTX"
+            >
+              <Layers className="mr-2 h-4 w-4" />
+              All themes
             </Button>
           </div>
         </div>
