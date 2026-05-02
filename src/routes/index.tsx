@@ -4,12 +4,15 @@ import { toPng } from "html-to-image";
 import { SwimlaneGantt, type BarShape } from "@/components/timeline/SwimlaneGantt";
 import { MilestoneTimeline } from "@/components/timeline/MilestoneTimeline";
 import { RoadmapQuarters } from "@/components/timeline/RoadmapQuarters";
+import { CalendarGrid } from "@/components/timeline/CalendarGrid";
+import { PhaseCards } from "@/components/timeline/PhaseCards";
 import { Plan, SAMPLE_PLAN, parsePlanInput } from "@/lib/timeline";
+import type { TimeScale } from "@/lib/timeline";
 import { exportPlanToPptx } from "@/lib/exportPptx";
 import { THEMES, getTheme, type ThemeId } from "@/lib/themes";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet, Palette } from "lucide-react";
+import { Sparkles, Download, Image as ImageIcon, Upload, ScanLine, Loader2, FileSpreadsheet, Palette, CalendarDays } from "lucide-react";
 import { extractPlanFromImage } from "@/server/extractPlan.functions";
 import { toast } from "sonner";
 
@@ -17,7 +20,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Style = "swimlane" | "milestone" | "roadmap";
+type Style = "swimlane" | "milestone" | "roadmap" | "calendar" | "phase";
 
 const SAMPLE_CSV = `name,start,end,swimlane,kind,color
 Discovery,2026-01-06,2026-02-20,Product,task,1
@@ -34,6 +37,7 @@ function Index() {
   const [style, setStyle] = useState<Style>("swimlane");
   const [shape, setShape] = useState<BarShape>("rounded");
   const [themeId, setThemeId] = useState<ThemeId>("executive");
+  const [scale, setScale] = useState<TimeScale>("month");
   const [raw, setRaw] = useState(SAMPLE_CSV);
   const [error, setError] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
@@ -44,10 +48,12 @@ function Index() {
   const theme = getTheme(themeId);
 
   const view = useMemo(() => {
-    if (style === "milestone") return <MilestoneTimeline plan={plan} />;
+    if (style === "milestone") return <MilestoneTimeline plan={plan} scale={scale} />;
     if (style === "roadmap") return <RoadmapQuarters plan={plan} />;
-    return <SwimlaneGantt plan={plan} shape={shape} />;
-  }, [plan, style, shape]);
+    if (style === "calendar") return <CalendarGrid plan={plan} />;
+    if (style === "phase") return <PhaseCards plan={plan} />;
+    return <SwimlaneGantt plan={plan} shape={shape} scale={scale} />;
+  }, [plan, style, shape, scale]);
 
   const handleApply = () => {
     try {
@@ -170,7 +176,7 @@ function Index() {
             </Button>
             <Button
               size="sm"
-              onClick={() => exportPlanToPptx(plan, style, shape, theme)}
+              onClick={() => exportPlanToPptx(plan, style, shape, theme, scale)}
               style={{ background: "var(--gradient-hero)" }}
             >
               <Download className="mr-2 h-4 w-4" />
@@ -217,8 +223,30 @@ function Index() {
                 <TabsTrigger className="rounded-full px-4" value="roadmap">
                   Roadmap
                 </TabsTrigger>
+                <TabsTrigger className="rounded-full px-4" value="calendar">
+                  Calendar
+                </TabsTrigger>
+                <TabsTrigger className="rounded-full px-4" value="phase">
+                  Phase Cards
+                </TabsTrigger>
               </TabsList>
             </Tabs>
+            <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs backdrop-blur">
+              <CalendarDays className="h-3.5 w-3.5 text-primary" />
+              <span className="font-semibold uppercase tracking-widest text-muted-foreground">
+                Scale
+              </span>
+              <select
+                value={scale}
+                onChange={(e) => setScale(e.target.value as TimeScale)}
+                className="bg-transparent text-xs font-semibold text-foreground outline-none"
+              >
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+                <option value="quarter">Quarter</option>
+                <option value="year">Year</option>
+              </select>
+            </div>
             <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs backdrop-blur">
               <span className="font-semibold uppercase tracking-widest text-muted-foreground">
                 Bar
