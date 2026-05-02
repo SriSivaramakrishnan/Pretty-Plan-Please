@@ -2,20 +2,21 @@ import {
   Plan,
   colorOf,
   formatDate,
-  monthsBetween,
   parseDate,
   pct,
   planRange,
-  formatMonth,
+  ticksFor,
+  type TimeScale,
 } from "@/lib/timeline";
 
 interface Props {
   plan: Plan;
+  scale?: TimeScale;
 }
 
-export function MilestoneTimeline({ plan }: Props) {
+export function MilestoneTimeline({ plan, scale = "month" }: Props) {
   const { start, end } = planRange(plan);
-  const months = monthsBetween(start, end);
+  const ticks = ticksFor(scale, start, end);
   const milestones = plan.tasks.filter((t) => t.kind === "milestone" || !t.end);
   const bars = plan.tasks.filter((t) => t.kind !== "milestone" && t.end);
 
@@ -45,15 +46,15 @@ export function MilestoneTimeline({ plan }: Props) {
           style={{ background: "var(--gradient-hero)" }}
         />
         {/* month ticks */}
-        {months.map((m, i) => (
+        {ticks.map((t, i) => (
           <div
             key={i}
             className="absolute flex -translate-x-1/2 flex-col items-center"
-            style={{ left: `${pct(m, start, end)}%`, top: "calc(50% + 12px)" }}
+            style={{ left: `${pct(t.date, start, end)}%`, top: "calc(50% + 12px)" }}
           >
             <div className="h-2 w-px bg-foreground/40" />
             <div className="mt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              {formatMonth(m)} {m.getMonth() === 0 ? m.getFullYear() : ""}
+              {t.label}{t.superLabel ? ` ${t.superLabel}` : ""}
             </div>
           </div>
         ))}
