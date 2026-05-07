@@ -139,6 +139,22 @@ export async function exportPlanToPptxAllThemes(
   });
 }
 
+/** Assign tasks to non-overlapping sub-rows within a lane using greedy interval scheduling. */
+function assignSubRows(tasks: { start: string; end?: string }[]): number[] {
+  const rowEnds: Date[] = [];
+  return tasks.map((t) => {
+    const sd = parseDate(t.start);
+    const ed = t.end ? parseDate(t.end) : sd;
+    const rowIdx = rowEnds.findIndex((e) => sd >= e);
+    if (rowIdx === -1) {
+      rowEnds.push(ed);
+      return rowEnds.length - 1;
+    }
+    rowEnds[rowIdx] = ed;
+    return rowIdx;
+  });
+}
+
 function drawSwimlane(slide: any, plan: Plan, shape: BarShape, theme: Theme, scale: TimeScale) {
   const shapeDef = pptxShapeFor(shape);
   const { start, end } = planRange(plan);
@@ -147,9 +163,35 @@ function drawSwimlane(slide: any, plan: Plan, shape: BarShape, theme: Theme, sca
   const x0 = 2.0;
   const y0 = 1.6;
   const w = SLIDE_W - x0 - 0.5;
-  const rowH = 0.6;
+  const subRowH = 0.38; // height of a single task bar row
+  const lanePad = 0.1;  // vertical padding inside each lane
   const headerH = 0.5;
 
+  // Pre-compute sub-row assignments per lane
+  const laneTaskMap: Record<string, typeof plan.tasks> = {};
+  const laneAssignments: Record<string, number[]> = {};
+  const laneSubRowCount: Record<string, number> = {};
+
+  lanes.forEach((lane) => {
+    const tasks = plan.tasks.filter((t) => (t.swimlane || "General") === lane);
+    laneTaskMap[lane] = tasks;
+    const assignments = assignSubRows(tasks);
+    laneAssignments[lane] = assignments;
+    laneSubRowCount[lane] = tasks.length > 0 ? Math.max(...assignments) + 1 : 1;
+  });
+
+  const laneHeight = (lane: string) => lanePad * 2 + laneSubRowCount[lane] * subRowH;
+
+  // Cumulative Y positions per lane
+  const laneY: Record<string, number> = {};
+  let cumY = y0 + headerH;
+  lanes.forEach((lane) => {
+    laneY[lane] = cumY;
+    cumY += laneHeight(lane);
+  });
+  const totalContentH = cumY - (y0 + headerH);
+
+  // Draw tick labels and major grid lines
   ticks.forEach((t) => {
     const mx = x0 + (pct(t.date, start, end) / 100) * w;
     slide.addText(t.label, {
@@ -167,84 +209,91 @@ function drawSwimlane(slide: any, plan: Plan, shape: BarShape, theme: Theme, sca
         x: mx,
         y: y0,
         w: 0,
-        h: rowH * lanes.length + headerH,
+        h: totalContentH + headerH,
         line: { color: theme.pptx.rule, width: 0.75 },
       });
     }
   });
 
+  // Draw lanes and tasks
   lanes.forEach((lane, li) => {
-    const y = y0 + headerH + li * rowH;
+    const y = laneY[lane];
+    const lh = laneHeight(lane);
+
+    // Lane label
     slide.addText(lane, {
       x: 0.4,
       y,
       w: 1.5,
-      h: rowH,
+      h: lh,
       fontSize: 11,
       bold: true,
       color: theme.pptx.ink,
       valign: "middle",
       fontFace: theme.pptx.bodyFont,
     });
+
+    // Lane background stripe
     slide.addShape("rect", {
       x: x0,
       y,
       w,
-      h: rowH,
+      h: lh,
       fill: { color: li % 2 === 0 ? theme.pptx.laneA : theme.pptx.laneB },
       line: { color: theme.pptx.background, width: 0 },
     });
 
-    plan.tasks
-      .filter((t) => (t.swimlane || "General") === lane)
-      .forEach((t) => {
-        const sd = parseDate(t.start);
-        const ed = parseDate(t.end || t.start);
-        const left = (pct(sd, start, end) / 100) * w;
-        const right = (pct(ed, start, end) / 100) * w;
-        const fill = colorAt(theme, t.color);
-        if (t.kind === "milestone" || !t.end) {
-          slide.addShape("diamond", {
-            x: x0 + left - 0.12,
-            y: y + rowH / 2 - 0.12,
-            w: 0.24,
-            h: 0.24,
-            fill: { color: fill },
-            line: { color: theme.pptx.background, width: 1 },
-          });
-          slide.addText(t.name, {
-            x: x0 + left - 0.6,
-            y: y + rowH / 2 + 0.1,
-            w: 1.2,
-            h: 0.2,
-            fontSize: 8,
-            color: theme.pptx.ink,
-            align: "center",
-            fontFace: theme.pptx.bodyFont,
-          });
-        } else {
-          slide.addShape(shapeDef.name, {
-            x: x0 + left,
-            y: y + 0.15,
-            w: Math.max(0.15, right - left),
-            h: rowH - 0.3,
-            fill: { color: fill },
-            line: { color: theme.pptx.background, width: 0 },
-            ...(shapeDef.rectRadius !== undefined ? { rectRadius: shapeDef.rectRadius } : {}),
-          });
-          slide.addText(t.name, {
-            x: x0 + left + 0.05,
-            y: y + 0.18,
-            w: Math.max(0.15, right - left) - 0.1,
-            h: rowH - 0.36,
-            fontSize: 9,
-            bold: true,
-            color: readableOn(fill),
-            valign: "middle",
-            fontFace: theme.pptx.bodyFont,
-          });
-        }
-      });
+    const tasks = laneTaskMap[lane];
+    const assignments = laneAssignments[lane];
+
+    tasks.forEach((t, ti) => {
+      const subRow = assignments[ti];
+      const sd = parseDate(t.start);
+      const ed = parseDate(t.end || t.start);
+      const left = (pct(sd, start, end) / 100) * w;
+      const right = (pct(ed, start, end) / 100) * w;
+      const fill = colorAt(theme, t.color);
+      const taskY = y + lanePad + subRow * subRowH;
+      const taskH = subRowH - 0.06;
+
+      if (t.kind === "milestone" || !t.end) {
+        slide.addShape("diamond", {
+          x: x0 + left - 0.12,
+          y: taskY + taskH / 2 - 0.12,
+          w: 0.24,
+          h: 0.24,
+          fill: { color: fill },
+          line: { color: theme.pptx.background, width: 1 },
+        });
+        slide.addText(t.name, {
+          x: x0 + left - 0.6,
+          y: taskY + taskH / 2 + 0.1,
+          w: 1.2,
+          h: 0.2,
+          fontSize: 8,
+          color: theme.pptx.ink,
+          align: "center",
+          fontFace: theme.pptx.bodyFont,
+        });
+      } else {
+        // Use addText with shape= to embed text directly inside the coloured shape element
+        slide.addText(t.name, {
+          shape: shapeDef.name as any,
+          x: x0 + left,
+          y: taskY,
+          w: Math.max(0.15, right - left),
+          h: taskH,
+          fill: { color: fill },
+          line: { color: theme.pptx.background, width: 0 },
+          fontSize: 9,
+          bold: true,
+          color: readableOn(fill),
+          valign: "middle",
+          fontFace: theme.pptx.bodyFont,
+          ...(shapeDef.rectRadius !== undefined ? { rectRadius: shapeDef.rectRadius } : {}),
+        });
+      }
+    });
   });
 }
 
